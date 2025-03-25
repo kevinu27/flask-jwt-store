@@ -1,3 +1,4 @@
+## Para levantar lo normal sin docker
 Opcional ( yo no lo usé)
 
 python -m venv venv  # Create a virtual environment
@@ -26,7 +27,7 @@ python app.py
 
 
 
-Para levantarlo con DOCKER:
+## Para levantarlo con DOCKER:
 1
 pip install -r requirements.txt
 
