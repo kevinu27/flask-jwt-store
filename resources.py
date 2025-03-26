@@ -28,14 +28,27 @@ def login():
     if not user or not check_password_hash(user.password, data['password']):
         return jsonify({'message': 'Invalid credentials'}), 401
 
-    access_token = create_access_token(identity=user.id)
-    return jsonify(access_token=access_token)
+    # ✅ Ensure identity is a string
+    access_token = create_access_token(identity=str(user.id))
+
+    print('console')
+    return jsonify(access_token=access_token, user_id=user.id, username=user.username)
+    # return jsonify(access_token=access_token)
+
+# Get All Users
+@api_blueprint.route('/users', methods=['GET'])
+def get_users():
+    users = User.query.all()
+    return jsonify([{'id': user.id, 'username': user.username} for user in users])
+
 
 # Create Store
 @api_blueprint.route('/store', methods=['POST'])
 @jwt_required()
 def create_store():
+    print("empzadon")
     data = request.get_json()
+    print('data', data)
     if Store.query.filter_by(name=data['name']).first():
         return jsonify({'message': 'Store already exists'}), 400
 
