@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Register</title>
+    <script>
+        const API_URL = "http://127.0.0.1:5000" // Update if needed
+
+        async function register() {
+            const username = document.getElementById("reg-username").value
+            const password = document.getElementById("reg-password").value
+
+            const response = await fetch(`${API_URL}/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            })
+
+            const data = await response.json()
+            alert(data.message)
+        }
+
+        async function login() {
+            const username = document.getElementById("login-username").value
+            const password = document.getElementById("login-password").value
+
+            const response = await fetch(`${API_URL}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            })
+
+            const data = await response.json()
+            if (data.access_token) {
+                localStorage.setItem("jwt", data.access_token)
+                alert("Login successful!")
+            } else {
+                alert("Login failed!")
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt")
+            alert("Logged out!")
+        }
+        async function getAllUsers() {
+            const response = await fetch(`${API_URL}/users`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
+        async function getAllStores() {
+            const response = await fetch(`${API_URL}/stores`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem("jwt")
+            if (token) {
+                document.getElementById("auth-status").innerText = "Authenticated ✅"
+            } else {
+                document.getElementById("auth-status").innerText = "Not Authenticated ❌"
+            }
+        }
+
+        async function registerAStore() {
+        const storename = document.getElementById("reg-store").value
+        const token = localStorage.getItem("jwt")
+
+        if (!storename) {
+            alert("Store name is required!")
+            return
+        }
+
+        if (!token) {
+            alert("No JWT token found. Please log in.")
+            return
+        }
+
+        console.log("JWT Token:", token)
+        console.log("Request Body:", JSON.stringify({ name: storename }))
+
+        const response = await fetch(`${API_URL}/store`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ name: storename })
+        })
+        const data = await response.json()
+        console.log('data', data)
+        alert(data.message)
+    }
+    async function getAStores() {
+        const token = localStorage.getItem("jwt")
+        console.log("JWT Token:", token)
+        const storeid = document.getElementById("store_id").value
+            const response = await  await fetch(`${API_URL}/store/${storeid}`, {
+                method: "GET",
+                headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
+        window.onload = checkAuth
+    </script>
+</head>
+<body>
+    <h2>Register</h2>
+    <input type="text" id="reg-username" placeholder="Username">
+    <input type="password" id="reg-password" placeholder="Password">
+    <button onclick="register()">Register</button>
+
+    <h2>Login</h2>
+    <input type="text" id="login-username" placeholder="Username">
+    <input type="password" id="login-password" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+    <h2>Session</h2>
+    <p id="auth-status">Checking...</p>
+    <button onclick="logout()">Logout</button>
+
+    <h2>All users</h2>
+    <button onclick="getAllUsers()">all users</button>
+
+    <h2>Register a Store</h2>
+    <input type="text" id="reg-store" placeholder="Store Name">
+    <button onclick="registerAStore()">Register</button>
+
+    <h2>All Stores</h2>
+    <button onclick="getAllStores()">all Stores</button>
+
+    <h2>get a Stores by id</h2>
+    
+    <input type="text" id="store_id" placeholder="Store Name">
+    <button onclick="getAStores()">get the Stores</button>
+</body>
+</html>
