@@ -81,6 +81,16 @@ def get_items(store_id):
     store = Store.query.get_or_404(store_id)
     return jsonify([{'id': item.id, 'name': item.name, 'price': item.price} for item in store.items])
 
+# get a specific Store
+@api_blueprint.route('/store/<int:store_id>', methods=['GET'])
+@jwt_required()
+def get_store(store_id):
+    store = Store.query.filter_by(id=store_id).first()
+    if not store:
+        return jsonify({'message': 'Store not found'}), 404
+    
+    return jsonify({'store': {'id': store.id, 'name': store.name}})
+
 # Delete Store
 @api_blueprint.route('/store/<int:store_id>', methods=['DELETE'])
 @jwt_required()
