@@ -121,6 +121,51 @@
             console.log('data', data)
         }
 
+        async function registerAItem() {
+        const token = localStorage.getItem("jwt")
+        const store = document.getElementById("reg-item-store").value
+        const item = document.getElementById("reg-item").value
+        const itemPrice = document.getElementById("reg-item-price").value
+
+        console.log("JWT Token:", token)
+
+            const response = await  await fetch(`${API_URL}/store/${store}/item`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ 
+                    name: item, 
+                    price: itemPrice, 
+                    store_id:store
+                 })
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
+
+        async function getAllItemInStores() {
+        const token = localStorage.getItem("jwt")
+        console.log("JWT Token:", token)
+
+        const storeid = document.getElementById("store_id_for_items").value
+            const response = await  await fetch(`${API_URL}/store/${storeid}/items`, {
+                method: "GET",
+                headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
         window.onload = checkAuth
     </script>
 </head>
@@ -142,6 +187,7 @@
     <h2>All users</h2>
     <button onclick="getAllUsers()">all users</button>
 
+    <p>-------------------------------------------------------------------------------------------------------------------------</p>
     <h2>Register a Store</h2>
     <input type="text" id="reg-store" placeholder="Store Name">
     <button onclick="registerAStore()">Register</button>
@@ -149,9 +195,21 @@
     <h2>All Stores</h2>
     <button onclick="getAllStores()">all Stores</button>
 
+    <p>-------------------------------------------------------------------------------------------------------------------------</p>
     <h2>get a Stores by id</h2>
-    
     <input type="text" id="store_id" placeholder="Store Name">
     <button onclick="getAStores()">get the Stores</button>
+
+    <h2>Register a Item</h2>
+    <input type="text" id="reg-item-store" placeholder="Store id">
+    <input type="text" id="reg-item" placeholder="Item Name">
+    <input type="int" id="reg-item-price" placeholder="Item Price">
+    <button onclick="registerAItem()">Register</button>
+
+    <h2>get a items by store id</h2>
+    <input type="text" id="store_id_for_items" placeholder="Store Name">
+    <button onclick="getAllItemInStores()">get the items of the Stores</button>
+    
 </body>
 </html>
+
