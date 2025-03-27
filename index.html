@@ -166,6 +166,40 @@
             console.log('data', data)
         }
 
+        async function deleteAStore() {
+        const token = localStorage.getItem("jwt")
+        console.log("JWT Token:", token)
+        const storeid = document.getElementById("store_id_to_delete").value
+            const response = await  await fetch(`${API_URL}/store/${storeid}`, {
+                method: "DELETE",
+                headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
+        async function deleteAnItem() {
+        const token = localStorage.getItem("jwt")
+        console.log("JWT Token:", token)
+        const storeid = document.getElementById("item_id_to_delete").value
+            const response = await  await fetch(`${API_URL}/store/${storeid}`, {
+                method: "DELETE",
+                headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+
+            })
+
+            const data = await response.json()
+            console.log('data', data)
+        }
+
         window.onload = checkAuth
     </script>
 </head>
@@ -209,7 +243,16 @@
     <h2>get a items by store id</h2>
     <input type="text" id="store_id_for_items" placeholder="Store Name">
     <button onclick="getAllItemInStores()">get the items of the Stores</button>
+    <p>-------------------------------------------------------------------------------------------------------------------------</p>
+
+    <h2>delete a Stores by id</h2>
+    <input type="text" id="store_id_to_delete" placeholder="Store Name">
+    <button onclick="deleteAStore()">delete the Stores</button>
     
+    <h2>delete an Item by id</h2>
+    <input type="text" id="item_id_to_delete" placeholder="Store Name">
+    <button onclick="deleteAnItem()">delete the Stores</button>
+
 </body>
 </html>
 
