@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
 from models import Store, Item, User
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -40,6 +40,19 @@ def login():
 def get_users():
     users = User.query.all()
     return jsonify([{'id': user.id, 'username': user.username} for user in users])
+
+
+# Get User data
+@api_blueprint.route('/userData', methods=['GET'])
+@jwt_required()  # Ensures only authenticated users can access
+def get_user_data():
+    user_id = get_jwt_identity()  # Extract user ID from the token
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    return jsonify({'id': user.id, 'username': user.username})
 
 
 # Create Store
