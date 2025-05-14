@@ -4,3 +4,5 @@ flask_jwt_extended
 werkzeug
 gunicorn
 flask-cors
+psycopg2-binary
+pymysql
