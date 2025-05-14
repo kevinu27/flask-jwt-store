@@ -186,8 +186,8 @@
         async function deleteAnItem() {
         const token = localStorage.getItem("jwt")
         console.log("JWT Token:", token)
-        const storeid = document.getElementById("item_id_to_delete").value
-            const response = await  await fetch(`${API_URL}/store/${storeid}`, {
+        const itemid = document.getElementById("item_id_to_delete").value
+            const response = await  await fetch(`${API_URL}/item/${itemid}`, {
                 method: "DELETE",
                 headers: {
                 "Content-Type": "application/json",

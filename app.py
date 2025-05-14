@@ -24,6 +24,7 @@ if __name__ == '__main__':
         for _ in range(10):
             try:
                 db.create_all()
+                print("bien la cosa")
                 break
             except OperationalError:
                 print("Database not ready yet. Retrying in 3 seconds...")

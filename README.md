@@ -36,3 +36,24 @@ docker build -t flask-api .
 
 3
 docker run -p 5000:5000 flask-api
+
+
+## base de datos con docker
+1 el dockerfile de la base de datos:
+
+FROM mysql:8.0
+
+ENV MYSQL_ROOT_PASSWORD=rootpassword
+ENV MYSQL_DATABASE=midb
+ENV MYSQL_USER=usuario
+ENV MYSQL_PASSWORD=contrasena
+
+EXPOSE 3306
+
+2
+ docker build -t mi-mysql . 
+ o
+ docker run --name some-mysql -v /my/own/datadir:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=admin -d mi-mysql
+
+ 3
+

@@ -27,7 +27,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URI: mysql+pymysql://root:rootpassword@db:3306/midb
+      DATABASE_URI: mysql+pymysql://root:rootpassword@localhost:3306/midb
       JWT_SECRET_KEY: myjwtsecret
 
 volumes:
