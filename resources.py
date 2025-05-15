@@ -10,11 +10,13 @@ api_blueprint = Blueprint('api', __name__)
 @api_blueprint.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
-    if User.query.filter_by(username=data['username']).first():
+    if User.query.filter_by(email=data['email']).first():
         return jsonify({'message': 'User already exists'}), 400
 
     hashed_password = generate_password_hash(data['password'])
-    user = User(username=data['username'], password=hashed_password)
+    
+
+    user = User(email=data['email'], password=hashed_password)
     db.session.add(user)
     db.session.commit()
     return jsonify({'message': 'User registered successfully'}), 201
@@ -23,7 +25,7 @@ def register():
 @api_blueprint.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    user = User.query.filter_by(username=data['username']).first()
+    user = User.query.filter_by(email=data['email']).first()
 
     if not user or not check_password_hash(user.password, data['password']):
         return jsonify({'message': 'Invalid credentials'}), 401
@@ -32,14 +34,14 @@ def login():
     access_token = create_access_token(identity=str(user.id))
 
     print('console')
-    return jsonify(access_token=access_token, user_id=user.id, username=user.username)
+    return jsonify(access_token=access_token, user_id=user.id, email=user.email)
     # return jsonify(access_token=access_token)
 
 # Get All Users
 @api_blueprint.route('/users', methods=['GET'])
 def get_users():
     users = User.query.all()
-    return jsonify([{'id': user.id, 'username': user.username} for user in users])
+    return jsonify([{'id': user.id, 'email': user.email} for user in users])
 
 
 # Get User data
@@ -52,7 +54,7 @@ def get_user_data():
     if not user:
         return jsonify({'message': 'User not found'}), 404
 
-    return jsonify({'id': user.id, 'username': user.username})
+    return jsonify({'id': user.id, 'email': user.email})
 
 
 # Create Store

@@ -13,5 +13,17 @@ class Item(db.Model):
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
+
+    role_settings = db.relationship('UserRoleSettings', backref='user', uselist=False, cascade='all, delete-orphan')
+
+    def __init__(self, email, password):
+        self.email = email
+        self.password = password
+        self.role_settings = UserRoleSettings(isSeller=False)
+
+class UserRoleSettings(db.Model):
+    id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    isSeller = db.Column(db.Boolean, default=False )
+    address = db.Column(db.String(255))
