@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
-from models import Store, Item, User
+from models import Store, Item, User, UserRoleSettings
 from werkzeug.security import generate_password_hash, check_password_hash
 
 api_blueprint = Blueprint('api', __name__)
@@ -17,6 +17,7 @@ def register():
     
 
     user = User(email=data['email'], password=hashed_password)
+    user.role_settings = UserRoleSettings(isSeller=False, address='')
     db.session.add(user)
     db.session.commit()
     return jsonify({'message': 'User registered successfully'}), 201
@@ -42,6 +43,25 @@ def login():
 def get_users():
     users = User.query.all()
     return jsonify([{'id': user.id, 'email': user.email} for user in users])
+
+# Get a specific user setting
+@api_blueprint.route('/UserRoleSettings/<int:user_id>', methods=['GET'])
+def get_settings(user_id):
+    roleSetting = UserRoleSettings.query.filter_by(id=user_id).first()
+    return jsonify({'roleSettings': {'isSeller': roleSetting.isSeller, 'address': roleSetting.address}})
+
+
+# set seller
+@api_blueprint.route('/setseller', methods=['POST'])
+def setSeller():
+    data = request.get_json()
+    userSettings = UserRoleSettings.query.get(data['id'])
+    if not userSettings:
+        return jsonify({'message': 'Usuario no encontrado'}), 404
+    userSettings.isSeller = True
+    db.session.commit()
+    return jsonify({'roleSettings': {'isSeller': userSettings.isSeller}}), 201
+
 
 
 # Get User data
