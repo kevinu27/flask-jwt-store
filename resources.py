@@ -83,11 +83,12 @@ def get_user_data():
 def create_store():
     print("empzadon")
     data = request.get_json()
-    print('data', data)
-    if Store.query.filter_by(name=data['name']).first():
+    print('data store', data)
+    if Store.query.filter_by(name=data['storename']).first():
         return jsonify({'message': 'Store already exists'}), 400
 
-    store = Store(name=data['name'])
+    store = Store(name=data['storename'])
+    store.owner_id = data['userId']
     db.session.add(store)
     db.session.commit()
     return jsonify({'message': 'Store created'}), 201
