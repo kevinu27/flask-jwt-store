@@ -1,10 +1,10 @@
 from database import db
 
 class Store(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)  # ← AUTOINCREMENT activado
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     items = db.relationship('Item', backref='store', lazy=True, cascade="all, delete")
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # ← ya no primary_key
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  
 
 
 

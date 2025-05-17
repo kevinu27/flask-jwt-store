@@ -99,6 +99,15 @@ def get_stores():
     stores = Store.query.all()
     return jsonify([{'id': store.id, 'name': store.name} for store in stores])
 
+# Get A Store by ownerId - mis stores en mi account
+@api_blueprint.route('/stores/<int:user_id>', methods=['GET'])
+def get_stores_by_owner(user_id):
+    stores = Store.query.filter_by(owner_id=user_id).all()
+    return jsonify([
+        {'id': store.id, 'name': store.name, 'owner_id': store.owner_id}
+        for store in stores
+    ])
+
 # Create Item
 @api_blueprint.route('/store/<int:store_id>/item', methods=['POST'])
 @jwt_required()
