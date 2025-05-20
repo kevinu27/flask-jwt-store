@@ -125,7 +125,7 @@ def create_item(store_id):
 @api_blueprint.route('/store/<int:store_id>/items', methods=['GET'])
 def get_items(store_id):
     store = Store.query.get_or_404(store_id)
-    return jsonify([{'id': item.id, 'name': item.name, 'price': item.price} for item in store.items])
+    return jsonify([{'id': item.id, 'name': item.name, 'price': item.price, 'description': item.description} for item in store.items])
 
 # get a specific Store
 @api_blueprint.route('/store/<int:store_id>', methods=['GET'])
