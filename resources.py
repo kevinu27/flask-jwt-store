@@ -110,12 +110,13 @@ def get_stores_by_owner(user_id):
 
 # Create Item
 @api_blueprint.route('/store/<int:store_id>/item', methods=['POST'])
-@jwt_required()
+# @jwt_required()
 def create_item(store_id):
     data = request.get_json()
     store = Store.query.get_or_404(store_id)
 
-    item = Item(name=data['name'], price=data['price'], store=store)
+    item = Item(name=data['name'], price=data['price'], description= data['description'], store=store)
+    print(item)
     db.session.add(item)
     db.session.commit()
     return jsonify({'message': 'Item created'}), 201
