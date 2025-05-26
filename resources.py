@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
-from models import Store, Item, User, UserRoleSettings
+from models import Store, Item, User, UserRoleSettings, Cart
 from werkzeug.security import generate_password_hash, check_password_hash
 
 api_blueprint = Blueprint('api', __name__)
@@ -164,3 +164,89 @@ def delete_item(item_id):
     db.session.delete(item)
     db.session.commit()
     return jsonify({'message': 'Item deleted'})
+
+# Edit Item
+@api_blueprint.route('/item/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_item(item_id):
+    item = Item.query.get_or_404(item_id)
+    data = request.get_json()
+
+    item.name = data.get('name', item.name)
+    item.price = data.get('price', item.price)
+    item.description = data.get('description', item.description)
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Item updated',
+        'item': {
+            'id': item.id,
+            'name': item.name,
+            'price': item.price,
+            'description': item.description
+        }
+    }), 200
+
+# Edit Store
+@api_blueprint.route('/store/<int:store_id>', methods=['PUT'])
+@jwt_required()
+def update_store(store_id):
+    store = Store.query.get_or_404(store_id)
+    data = request.get_json()
+
+    store.name = data.get('name', store.name)
+
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Item updated',
+        'store': {
+            'id': store.id,
+            'name': store.name
+        }
+    }), 200
+
+# Get all items (paginated / lazy loading)
+@api_blueprint.route('/items_paginated', methods=['GET'])
+def get_all_items_paginated():
+
+    # Parámetros de query para paginación
+    page = request.args.get('page', default=1, type=int)
+    per_page = request.args.get('per_page', default=10, type=int)
+
+    # Query paginada de todos los ítems
+    paginated_items = Item.query.paginate(page=page, per_page=per_page, error_out=False)
+
+    items_list = [
+        {
+            'id': item.id,
+            'name': item.name,
+            'price': item.price,
+            'description': item.description,
+            'store_id': item.store_id  # opcional si quieres saber de qué tienda es
+        } for item in paginated_items.items
+    ]
+
+    return jsonify({
+        'items': items_list,
+        'total': paginated_items.total,
+        'page': paginated_items.page,
+        'per_page': paginated_items.per_page,
+        'pages': paginated_items.pages
+    })
+
+
+# Add to Cart
+@api_blueprint.route('/addtocart', methods=['POST'])
+@jwt_required()
+def add_to_cart():
+    print("addtocart")
+    data = request.get_json()
+    print('data cart', data)
+
+    itemInCart = Cart(id_item=data['itemId'])
+    itemInCart.user_id = data['userId']
+    db.session.add(itemInCart)
+    db.session.commit()
+    return jsonify({'message': 'imtem in cart created'}), 201

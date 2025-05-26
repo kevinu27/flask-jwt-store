@@ -55,5 +55,9 @@ EXPOSE 3306
  o
  docker run --name some-mysql -v /my/own/datadir:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=admin -d mi-mysql
 
- 3
+ 3 docker run -d -p 3306:3306 --name contenedor-mysql mi-mysql
 
+ ### to do  
+
+- 1.carga masiva con excel
+- 2.export masivo con excel

@@ -14,6 +14,7 @@ class Item(db.Model):
     description = db.Column(db.String(255), nullable=False)
     price = db.Column(db.Float, nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('store.id'), nullable=False)
+    # discount =  db.Column(db.Integer, nullable=False)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -25,3 +26,8 @@ class UserRoleSettings(db.Model):
     id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     isSeller = db.Column(db.Boolean, default=False )
     address = db.Column(db.String(255))
+
+    
+class Cart(db.Model): 
+    id_item = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  
