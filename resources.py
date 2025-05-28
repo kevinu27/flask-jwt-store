@@ -250,3 +250,40 @@ def add_to_cart():
     db.session.add(itemInCart)
     db.session.commit()
     return jsonify({'message': 'imtem in cart created'}), 201
+
+# Get All Items in your cart
+@api_blueprint.route('/cart/<int:user_id>/item_ids', methods=['GET'])
+def get_item_ids_in_cart(user_id):
+    cart_items = Cart.query.filter_by(user_id=user_id).all()
+    item_ids = [item.id_item for item in cart_items]
+    return jsonify({'id_item': item_ids})
+
+@api_blueprint.route('/items_by_ids', methods=['POST'])
+@jwt_required()
+def get_items_by_ids():
+    data = request.get_json()
+    item_ids = data.get('item_ids', [])
+
+    if not isinstance(item_ids, list) or not all(isinstance(i, int) for i in item_ids):
+        return jsonify({'error': 'Invalid item_ids list'}), 400
+
+    items = Item.query.filter(Item.id.in_(item_ids)).all()
+
+    return jsonify([
+        {
+            'id': item.id,
+            'name': item.name,
+            'description': item.description,
+            'price': item.price,
+            'store_id': item.store_id
+        } for item in items
+    ])
+
+# Delete Item from cart
+@api_blueprint.route('/item/cart/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def delete_item_from_cart(item_id):
+    item = Cart.query.get_or_404(item_id)
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'message': 'Item deleted'})

@@ -29,5 +29,6 @@ class UserRoleSettings(db.Model):
 
     
 class Cart(db.Model): 
-    id_item = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_item = db.Column(db.Integer, primary_key=True )
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  
+    # quantity = db.Column(db.Integer )
