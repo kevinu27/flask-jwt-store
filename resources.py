@@ -161,9 +161,17 @@ def delete_store(store_id):
 @jwt_required()
 def delete_item(item_id):
     item = Item.query.get_or_404(item_id)
+
+    # Verificar si el item está en el carrito
+    cart_entries = Cart.query.filter_by(id_item=item_id).all()
+    for cart_item in cart_entries:
+        db.session.delete(cart_item)
+
+    # Eliminar el item
     db.session.delete(item)
     db.session.commit()
-    return jsonify({'message': 'Item deleted'})
+
+    return jsonify({'message': 'Item deleted (and removed from cart if it was present)'})
 
 # Edit Item
 @api_blueprint.route('/item/<int:item_id>', methods=['PUT'])
