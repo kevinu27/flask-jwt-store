@@ -296,34 +296,26 @@ def delete_item_from_cart(item_id):
     return jsonify({'message': 'Item deleted'})
 
 #create order
-@api_blueprint.route('/placeorder/<int:store_id>/item', methods=['POST'])
+@api_blueprint.route('/placeorder', methods=['POST'])
 @jwt_required()
-def create_order(store_id):
-    user_id = get_jwt_identity() 
+def create_order():
+    user_id = get_jwt_identity()  # Obtenemos el ID del usuario desde el token JWT
     data = request.get_json()
     item_ids = data.get('item_ids', [])
 
     if not isinstance(item_ids, list) or not all(isinstance(i, int) for i in item_ids):
         return jsonify({'error': 'Invalid item_ids list'}), 400
 
-    store = Store.query.get_or_404(store_id)
+    # Obtener ítems válidos del carrito del usuario
+    cart_items = Cart.query.filter(Cart.user_id == user_id, Cart.id_item.in_(item_ids)).all()
+    if not cart_items:
+        return jsonify({'message': 'No items in cart matched'}), 400
 
-    # Validar que todos los ítems existan y pertenezcan a esa tienda
-    valid_items = Item.query.filter(Item.id.in_(item_ids), Item.store_id == store_id).all()
-
-    if len(valid_items) != len(item_ids):
-        return jsonify({'error': 'One or more items not found or do not belong to the store'}), 400
-
-    # Crear órdenes y eliminar del carrito
-    for item in valid_items:
-        # Crear orden
-        order = Orders(id_item=item.id, user_id=user_id)
-        db.session.add(order)
-
-        # Eliminar del carrito si existe
-        cart_entry = Cart.query.filter_by(id_item=item.id, user_id=user_id).first()
-        if cart_entry:
-            db.session.delete(cart_entry)
+    # Crear las órdenes y eliminar del carrito
+    for cart_item in cart_items:
+        new_order = Orders(id_item=cart_item.id_item, user_id=user_id)
+        db.session.add(new_order)
+        db.session.delete(cart_item)
 
     db.session.commit()
 
