@@ -167,7 +167,6 @@ def delete_item(item_id):
     for cart_item in cart_entries:
         db.session.delete(cart_item)
 
-    # Eliminar el item
     db.session.delete(item)
     db.session.commit()
 

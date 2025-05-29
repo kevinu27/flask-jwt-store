@@ -1,4 +1,5 @@
 from database import db
+from datetime import datetime
 
 class Store(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -31,4 +32,9 @@ class UserRoleSettings(db.Model):
 class Cart(db.Model): 
     id_item = db.Column(db.Integer, primary_key=True )
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  
-    # quantity = db.Column(db.Integer )
+    # quantityOfItem = db.Column(db.Integer )
+
+class Orders(db.Model): 
+    id_item = db.Column(db.Integer, primary_key=True )
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
