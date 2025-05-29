@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
-from models import Store, Item, User, UserRoleSettings, Cart
+from models import Store, Item, User, UserRoleSettings, Cart, Orders
 from werkzeug.security import generate_password_hash, check_password_hash
 
 api_blueprint = Blueprint('api', __name__)
@@ -294,3 +294,37 @@ def delete_item_from_cart(item_id):
     db.session.delete(item)
     db.session.commit()
     return jsonify({'message': 'Item deleted'})
+
+#create order
+@api_blueprint.route('/placeorder/<int:store_id>/item', methods=['POST'])
+@jwt_required()
+def create_order(store_id):
+    user_id = get_jwt_identity() 
+    data = request.get_json()
+    item_ids = data.get('item_ids', [])
+
+    if not isinstance(item_ids, list) or not all(isinstance(i, int) for i in item_ids):
+        return jsonify({'error': 'Invalid item_ids list'}), 400
+
+    store = Store.query.get_or_404(store_id)
+
+    # Validar que todos los ítems existan y pertenezcan a esa tienda
+    valid_items = Item.query.filter(Item.id.in_(item_ids), Item.store_id == store_id).all()
+
+    if len(valid_items) != len(item_ids):
+        return jsonify({'error': 'One or more items not found or do not belong to the store'}), 400
+
+    # Crear órdenes y eliminar del carrito
+    for item in valid_items:
+        # Crear orden
+        order = Orders(id_item=item.id, user_id=user_id)
+        db.session.add(order)
+
+        # Eliminar del carrito si existe
+        cart_entry = Cart.query.filter_by(id_item=item.id, user_id=user_id).first()
+        if cart_entry:
+            db.session.delete(cart_entry)
+
+    db.session.commit()
+
+    return jsonify({'message': 'Order placed and items removed from cart'}), 201
