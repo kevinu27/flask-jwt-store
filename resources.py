@@ -320,3 +320,10 @@ def create_order():
     db.session.commit()
 
     return jsonify({'message': 'Order placed and items removed from cart'}), 201
+
+
+@api_blueprint.route('/myorders/<int:user_id>/item_ids', methods=['GET'])
+def get_item_ids_in_orders(user_id):
+    order_items = Orders.query.filter_by(user_id=user_id).all()
+    item_ids = [item.id_item for item in order_items]
+    return jsonify({'id_item': item_ids})
