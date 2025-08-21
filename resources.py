@@ -1,10 +1,47 @@
-from flask import Blueprint, request, jsonify
+import os
+import uuid
+from werkzeug.utils import secure_filename
+from flask import Blueprint, request, jsonify, send_from_directory, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from database import db
-from models import Store, Item, User, UserRoleSettings, Cart, Orders
+from models import Store, Item, User, UserRoleSettings, Cart, Orders, ItemImage
 from werkzeug.security import generate_password_hash, check_password_hash
+from PIL import Image
 
 api_blueprint = Blueprint('api', __name__)
+
+# Image upload configuration
+UPLOAD_FOLDER = 'uploads/items'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def create_upload_folder():
+    """Create upload directory if it doesn't exist"""
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
+def compress_image(image_path, max_size=(800, 800), quality=85):
+    """Compress and resize image to reduce file size"""
+    try:
+        with Image.open(image_path) as img:
+            # Convert RGBA to RGB if necessary
+            if img.mode in ('RGBA', 'LA'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            
+            # Resize if image is larger than max_size
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+            
+            # Save with compression
+            img.save(image_path, optimize=True, quality=quality)
+        return True
+    except Exception as e:
+        print(f"Error compressing image: {e}")
+        return False
 
 # User Registration
 @api_blueprint.route('/register', methods=['POST'])
@@ -15,7 +52,6 @@ def register():
 
     hashed_password = generate_password_hash(data['password'])
     
-
     user = User(email=data['email'], password=hashed_password)
     user.role_settings = UserRoleSettings(isSeller=False, address='')
     db.session.add(user)
@@ -36,7 +72,6 @@ def login():
 
     print('console')
     return jsonify(access_token=access_token, user_id=user.id, email=user.email)
-    # return jsonify(access_token=access_token)
 
 # Get All Users
 @api_blueprint.route('/users', methods=['GET'])
@@ -50,7 +85,6 @@ def get_settings(user_id):
     roleSetting = UserRoleSettings.query.filter_by(id=user_id).first()
     return jsonify({'roleSettings': {'isSeller': roleSetting.isSeller, 'address': roleSetting.address}})
 
-
 # set seller
 @api_blueprint.route('/setseller', methods=['POST'])
 def setSeller():
@@ -61,8 +95,6 @@ def setSeller():
     userSettings.isSeller = True
     db.session.commit()
     return jsonify({'roleSettings': {'isSeller': userSettings.isSeller}}), 201
-
-
 
 # Get User data
 @api_blueprint.route('/userData', methods=['GET'])
@@ -75,7 +107,6 @@ def get_user_data():
         return jsonify({'message': 'User not found'}), 404
 
     return jsonify({'id': user.id, 'email': user.email})
-
 
 # Create Store
 @api_blueprint.route('/store', methods=['POST'])
@@ -119,13 +150,23 @@ def create_item(store_id):
     print(item)
     db.session.add(item)
     db.session.commit()
-    return jsonify({'message': 'Item created'}), 201
+    return jsonify({'message': 'Item created', 'item_id': item.id}), 201
 
-# Get All Items in a Store
+# Get All Items in a Store (Updated with images)
 @api_blueprint.route('/store/<int:store_id>/items', methods=['GET'])
 def get_items(store_id):
     store = Store.query.get_or_404(store_id)
-    return jsonify([{'id': item.id, 'name': item.name, 'price': item.price, 'description': item.description} for item in store.items])
+    items_data = []
+    for item in store.items:
+        primary_image = next((img for img in item.images if img.is_primary), None)
+        items_data.append({
+            'id': item.id,
+            'name': item.name,
+            'price': item.price,
+            'description': item.description,
+            'primary_image': primary_image.get_url() if primary_image else None
+        })
+    return jsonify(items_data)
 
 # get a specific Store
 @api_blueprint.route('/store/<int:store_id>', methods=['GET'])
@@ -137,15 +178,31 @@ def get_store(store_id):
     
     return jsonify({'store': {'id': store.id, 'name': store.name}})
 
-# get a specific Item
+# get a specific Item (Updated with images)
 @api_blueprint.route('/item/<int:item_id>', methods=['GET'])
-# @jwt_required()
 def get_item(item_id):
     item = Item.query.filter_by(id=item_id).first()
     if not item:
-        return jsonify({'message': 'Store not found'}), 404
+        return jsonify({'message': 'Item not found'}), 404
     
-    return jsonify({'item': {'id': item.id, 'name': item.name, 'description': item.description, 'price': item.price, 'price': item.price}})
+    # Get images
+    images = [{
+        'id': img.id,
+        'url': img.get_url(),
+        'is_primary': img.is_primary,
+        'filename': img.filename
+    } for img in item.images]
+    
+    return jsonify({
+        'item': {
+            'id': item.id,
+            'name': item.name,
+            'description': item.description,
+            'price': item.price,
+            'store_id': item.store_id,
+            'images': images
+        }
+    })
 
 # Delete Store
 @api_blueprint.route('/store/<int:store_id>', methods=['DELETE'])
@@ -156,11 +213,17 @@ def delete_store(store_id):
     db.session.commit()
     return jsonify({'message': 'Store deleted'})
 
-# Delete Item
+# Delete Item (Updated to handle images)
 @api_blueprint.route('/item/<int:item_id>', methods=['DELETE'])
 @jwt_required()
 def delete_item(item_id):
     item = Item.query.get_or_404(item_id)
+
+    # Delete associated images from filesystem
+    for image in item.images:
+        file_path = os.path.join(UPLOAD_FOLDER, image.file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
     # Verificar si el item está en el carrito
     cart_entries = Cart.query.filter_by(id_item=item_id).all()
@@ -207,17 +270,16 @@ def update_store(store_id):
     db.session.commit()
 
     return jsonify({
-        'message': 'Item updated',
+        'message': 'Store updated',
         'store': {
             'id': store.id,
             'name': store.name
         }
     }), 200
 
-# Get all items (paginated / lazy loading)
+# Get all items (paginated / lazy loading) - Updated with images
 @api_blueprint.route('/items_paginated', methods=['GET'])
 def get_all_items_paginated():
-
     # Parámetros de query para paginación
     page = request.args.get('page', default=1, type=int)
     per_page = request.args.get('per_page', default=10, type=int)
@@ -225,15 +287,17 @@ def get_all_items_paginated():
     # Query paginada de todos los ítems
     paginated_items = Item.query.paginate(page=page, per_page=per_page, error_out=False)
 
-    items_list = [
-        {
+    items_list = []
+    for item in paginated_items.items:
+        primary_image = next((img for img in item.images if img.is_primary), None)
+        items_list.append({
             'id': item.id,
             'name': item.name,
             'price': item.price,
             'description': item.description,
-            'store_id': item.store_id  # opcional si quieres saber de qué tienda es
-        } for item in paginated_items.items
-    ]
+            'store_id': item.store_id,
+            'primary_image': primary_image.get_url() if primary_image else None
+        })
 
     return jsonify({
         'items': items_list,
@@ -243,6 +307,236 @@ def get_all_items_paginated():
         'pages': paginated_items.pages
     })
 
+# IMAGE UPLOAD ENDPOINTS
+
+@api_blueprint.route('/item/<int:item_id>/upload-image', methods=['POST'])
+# @jwt_required()
+def upload_item_image(item_id):
+    """Upload single image for an item"""
+    print('upload-image')
+    create_upload_folder()
+    
+    # Check if item exists
+    item = Item.query.get_or_404(item_id)
+    
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+    
+    file = request.files['image']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+    
+    try:
+        # Generate unique filename
+        original_filename = secure_filename(file.filename)
+        file_extension = original_filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+        
+        # Save file
+        file.save(file_path)
+        
+        # Get file info
+        file_size = os.path.getsize(file_path)
+        
+        # Check file size
+        if file_size > MAX_FILE_SIZE:
+            os.remove(file_path)
+            return jsonify({'error': 'File too large. Maximum size: 5MB'}), 400
+        
+        # Compress image
+        compress_image(file_path)
+        
+        # Update file size after compression
+        file_size = os.path.getsize(file_path)
+        
+        # Check if this is the first image (make it primary)
+        is_primary = len(item.images) == 0
+        
+        # Save to database
+        item_image = ItemImage(
+            item_id=item_id,
+            filename=original_filename,
+            file_path=unique_filename,
+            file_size=file_size,
+            mime_type=file.mimetype,
+            is_primary=is_primary
+        )
+        
+        db.session.add(item_image)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Image uploaded successfully',
+            'image': {
+                'id': item_image.id,
+                'filename': item_image.filename,
+                'url': item_image.get_url(),
+                'is_primary': item_image.is_primary,
+                'file_size': item_image.file_size
+            }
+        }), 201
+        
+    except Exception as e:
+        # Clean up file if database save fails
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
+@api_blueprint.route('/item/<int:item_id>/upload-multiple-images', methods=['POST'])
+@jwt_required()
+def upload_multiple_item_images(item_id):
+    """Upload multiple images for an item"""
+    create_upload_folder()
+    
+    # Check if item exists
+    item = Item.query.get_or_404(item_id)
+    
+    if 'images' not in request.files:
+        return jsonify({'error': 'No image files provided'}), 400
+    
+    files = request.files.getlist('images')
+    
+    if not files or all(file.filename == '' for file in files):
+        return jsonify({'error': 'No files selected'}), 400
+    
+    uploaded_images = []
+    errors = []
+    
+    for i, file in enumerate(files):
+        if file.filename == '':
+            continue
+            
+        if not allowed_file(file.filename):
+            errors.append(f"File {i+1}: Invalid file type")
+            continue
+        
+        try:
+            # Generate unique filename
+            original_filename = secure_filename(file.filename)
+            file_extension = original_filename.rsplit('.', 1)[1].lower()
+            unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+            file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+            
+            # Save file
+            file.save(file_path)
+            
+            # Get file info
+            file_size = os.path.getsize(file_path)
+            
+            # Check file size
+            if file_size > MAX_FILE_SIZE:
+                os.remove(file_path)
+                errors.append(f"File {i+1}: Too large (max 5MB)")
+                continue
+            
+            # Compress image
+            compress_image(file_path)
+            
+            # Update file size after compression
+            file_size = os.path.getsize(file_path)
+            
+            # Check if this is the first image (make it primary)
+            is_primary = len(item.images) == 0 and len(uploaded_images) == 0
+            
+            # Save to database
+            item_image = ItemImage(
+                item_id=item_id,
+                filename=original_filename,
+                file_path=unique_filename,
+                file_size=file_size,
+                mime_type=file.mimetype,
+                is_primary=is_primary
+            )
+            
+            db.session.add(item_image)
+            uploaded_images.append({
+                'id': item_image.id,
+                'filename': original_filename,
+                'url': item_image.get_url(),
+                'is_primary': is_primary
+            })
+            
+        except Exception as e:
+            if 'file_path' in locals() and os.path.exists(file_path):
+                os.remove(file_path)
+            errors.append(f"File {i+1}: Upload failed - {str(e)}")
+    
+    if uploaded_images:
+        db.session.commit()
+    
+    return jsonify({
+        'message': f'{len(uploaded_images)} images uploaded successfully',
+        'images': uploaded_images,
+        'errors': errors
+    }), 201 if uploaded_images else 400
+
+@api_blueprint.route('/item/<int:item_id>/images', methods=['GET'])
+def get_item_images(item_id):
+    """Get all images for an item"""
+    item = Item.query.get_or_404(item_id)
+    
+    images = [{
+        'id': img.id,
+        'filename': img.filename,
+        'url': img.get_url(),
+        'is_primary': img.is_primary,
+        'file_size': img.file_size,
+        'uploaded_at': img.uploaded_at.isoformat()
+    } for img in item.images]
+    
+    return jsonify({'images': images})
+
+@api_blueprint.route('/image/<int:image_id>/set-primary', methods=['PUT'])
+@jwt_required()
+def set_primary_image(image_id):
+    """Set an image as primary for its item"""
+    image = ItemImage.query.get_or_404(image_id)
+    
+    # Remove primary flag from other images of the same item
+    ItemImage.query.filter_by(item_id=image.item_id).update({'is_primary': False})
+    
+    # Set this image as primary
+    image.is_primary = True
+    db.session.commit()
+    
+    return jsonify({'message': 'Primary image updated'})
+
+@api_blueprint.route('/image/<int:image_id>', methods=['DELETE'])
+@jwt_required()
+def delete_image(image_id):
+    """Delete an image"""
+    image = ItemImage.query.get_or_404(image_id)
+    
+    # Delete file from filesystem
+    file_path = os.path.join(UPLOAD_FOLDER, image.file_path)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    
+    # If deleting primary image, set another image as primary
+    if image.is_primary:
+        other_images = ItemImage.query.filter(
+            ItemImage.item_id == image.item_id,
+            ItemImage.id != image.id
+        ).first()
+        if other_images:
+            other_images.is_primary = True
+    
+    # Delete from database
+    db.session.delete(image)
+    db.session.commit()
+    
+    return jsonify({'message': 'Image deleted successfully'})
+
+# Serve uploaded files
+@api_blueprint.route('/uploads/items/<path:filename>')
+def uploaded_file(filename):
+    """Serve uploaded images"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # Add to Cart
 @api_blueprint.route('/addtocart', methods=['POST'])
@@ -276,15 +570,19 @@ def get_items_by_ids():
 
     items = Item.query.filter(Item.id.in_(item_ids)).all()
 
-    return jsonify([
-        {
+    items_data = []
+    for item in items:
+        primary_image = next((img for img in item.images if img.is_primary), None)
+        items_data.append({
             'id': item.id,
             'name': item.name,
             'description': item.description,
             'price': item.price,
-            'store_id': item.store_id
-        } for item in items
-    ])
+            'store_id': item.store_id,
+            'primary_image': primary_image.get_url() if primary_image else None
+        })
+
+    return jsonify(items_data)
 
 # Delete Item from cart
 @api_blueprint.route('/item/cart/<int:item_id>', methods=['DELETE'])
@@ -320,7 +618,6 @@ def create_order():
     db.session.commit()
 
     return jsonify({'message': 'Order placed and items removed from cart'}), 201
-
 
 @api_blueprint.route('/myorders/<int:user_id>/item_ids', methods=['GET'])
 def get_item_ids_in_orders(user_id):

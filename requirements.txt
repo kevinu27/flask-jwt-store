@@ -6,3 +6,4 @@ gunicorn
 flask-cors
 psycopg2-binary
 pymysql
+Pillow
