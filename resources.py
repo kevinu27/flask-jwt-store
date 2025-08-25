@@ -7,6 +7,7 @@ from database import db
 from models import Store, Item, User, UserRoleSettings, Cart, Orders, ItemImage
 from werkzeug.security import generate_password_hash, check_password_hash
 from PIL import Image
+from datetime import timedelta
 
 api_blueprint = Blueprint('api', __name__)
 
@@ -68,7 +69,10 @@ def login():
         return jsonify({'message': 'Invalid credentials'}), 401
 
     # ✅ Ensure identity is a string
-    access_token = create_access_token(identity=str(user.id))
+    access_token = create_access_token(
+        identity=str(user.id),
+        expires_delta=timedelta(hours=10)
+        )
 
     print('console')
     return jsonify(access_token=access_token, user_id=user.id, email=user.email)
